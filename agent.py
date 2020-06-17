@@ -32,6 +32,7 @@ class Agent():
         self.actor = Actor(state_size, action_size, seed, ACTOR_NETWORK_LINEAR_SIZES).to(device)
         self.critic = Critic(state_size, seed, CRITIC_NETWORK_LINEAR_SIZES).to(device)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=LEARNING_RATE)
+        self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=LEARNING_RATE)
 
         # Replay memory
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
@@ -88,9 +89,16 @@ class Agent():
             gamma (float): discount factor
         """
         states, actions, rewards, next_states, dones = experiences
-        
-
-
+        TD = torch.tensor(rewards + gamma*self.critic(next_states), requires_grad=False)
+        loss = F.mse_loss(self.critic(states), TD)
+        self.critic.zero_grad()
+        loss.backward()
+        self.critic_optimizer.step()
+        advantage = torch.tensor(TD - self.critic(states), requires_grad=False)
+        loss = F.cross_entropy(self.actor(states), advantage)
+        self.actor.zero_grad()
+        loss.backward()
+        self.actor.step()
 
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
