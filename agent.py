@@ -108,6 +108,25 @@ class Agent():
         loss.backward()
         self.actor.step()
 
+    def actor_soft_update(self, tau:float=TAU):
+        """Soft update for actor target network
+
+        Args:
+            tau (float, optional). Defaults to TAU.
+        """
+        for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
+            target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
+
+    def critic_soft_update(self, tau:float=TAU):
+        """Soft update for critic target network
+
+        Args:
+            tau (float, optional). Defaults to TAU.
+        """
+        for target_param, param in zip(self.critic_target.parameters(), self.critic.parameters()):
+            target_param.data.copy_(tau * param.data + (1.0 - tau) * target_param.data)
+
+
 class ReplayBuffer:
     """Fixed-size buffer to store experience tuples."""
 
