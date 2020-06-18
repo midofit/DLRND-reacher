@@ -28,9 +28,11 @@ class Agent():
         self.action_size = action_size
         self.seed = random.seed(seed)
 
-        # Q-Network
+        # Initialize actor and critic local and target networks
         self.actor = Actor(state_size, action_size, seed, ACTOR_NETWORK_LINEAR_SIZES).to(device)
-        self.critic = Critic(state_size, seed, CRITIC_NETWORK_LINEAR_SIZES).to(device)
+        self.actor_target = Actor(state_size, action_size, seed, ACTOR_NETWORK_LINEAR_SIZES).to(device)
+        self.critic = Critic(state_size, action_size, seed, CRITIC_NETWORK_LINEAR_SIZES).to(device)
+        self.critic_target = Critic(state_size, action_size, seed, CRITIC_NETWORK_LINEAR_SIZES).to(device)
         self.actor_optimizer = optim.Adam(self.actor.parameters(), lr=LEARNING_RATE)
         self.critic_optimizer = optim.Adam(self.critic.parameters(), lr=LEARNING_RATE)
 
@@ -39,6 +41,12 @@ class Agent():
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
     
+        # Copy parameters from local network to target network
+        for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
+            target_param.data.copy_(param.data)
+        for target_param, param in zip(self.critic_target.parameters(), self.critic.parameters()):
+            target_param.data.copy_(param.data)
+
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
