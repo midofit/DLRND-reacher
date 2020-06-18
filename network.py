@@ -30,6 +30,7 @@ class Actor(nn.Module):
         """Build a network that maps state -> action values."""
         output = self.linear(state)
         output = self.output(output)
+        output = torch.tanh(output)
         return output
 
 
