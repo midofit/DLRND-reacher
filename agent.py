@@ -88,7 +88,7 @@ class Agent():
         else:
             return random.choice(np.arange(self.action_size))
 
-    def learn(self, experiences, gamma):
+    def learn(self, experiences:tuple, gamma=GAMMA):
         """Update value parameters using given batch of experience tuples.
 
         Params
@@ -97,16 +97,22 @@ class Agent():
             gamma (float): discount factor
         """
         states, actions, rewards, next_states, dones = experiences
-        TD = torch.tensor(rewards + gamma*self.critic(next_states), requires_grad=False)
-        loss = F.mse_loss(self.critic(states), TD)
+        # Critic loss
+        mask = torch.tensor(1-dones).unsqueeze(-1)
+        Q_values = self.critic(states, actions)
+        next_actions = self.actor_target(next_states)
+        next_Q = self.critic_target(next_states, next_actions.detach())
+        Q_prime = rewards + gamma * next_Q * mask
+        critic_loss = F.mse_loss(Q_values, Q_prime)
         self.critic.zero_grad()
-        loss.backward()
+        critic_loss.backward()
         self.critic_optimizer.step()
-        advantage = torch.tensor(TD - self.critic(states), requires_grad=False)
-        loss = F.cross_entropy(self.actor(states), advantage)
+
+        # Actor loss
+        policy_loss = -self.critic(states, self.actor(states)).mean()
         self.actor.zero_grad()
-        loss.backward()
-        self.actor.step()
+        policy_loss.backward()
+        self.actor_optimizer.step()
 
     def actor_soft_update(self, tau:float=TAU):
         """Soft update for actor target network
