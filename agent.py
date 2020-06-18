@@ -88,11 +88,7 @@ class Agent():
             action_values = self.actor(state)
         self.actor.train()
 
-        # Epsilon-greedy action selection
-        if random.random() > eps:
-            return np.argmax(action_values.cpu().data.numpy())
-        else:
-            return random.choice(np.arange(self.action_size))
+        return action_values.tolist()
 
     def learn(self, experiences: tuple, gamma=GAMMA):
         """Update value parameters using given batch of experience tuples.
@@ -104,7 +100,7 @@ class Agent():
         """
         states, actions, rewards, next_states, dones = experiences
         # Critic loss
-        mask = torch.tensor(1-dones).unsqueeze(-1)
+        mask = torch.tensor(1-dones)
         Q_values = self.critic(states, actions)
         next_actions = self.actor_target(next_states)
         next_Q = self.critic_target(next_states, next_actions.detach())
@@ -173,7 +169,7 @@ class ReplayBuffer:
         states = torch.from_numpy(
             np.vstack([e.state for e in experiences if e is not None])).float().to(device)
         actions = torch.from_numpy(
-            np.vstack([e.action for e in experiences if e is not None])).long().to(device)
+            np.vstack([e.action for e in experiences if e is not None])).float().to(device)
         rewards = torch.from_numpy(
             np.vstack([e.reward for e in experiences if e is not None])).float().to(device)
         next_states = torch.from_numpy(np.vstack(
