@@ -106,16 +106,24 @@ class Agent():
         next_Q = self.critic_target(next_states, next_actions.detach())
         Q_prime = rewards + gamma * next_Q * mask
         critic_loss = F.mse_loss(Q_values, Q_prime)
-        self.critic.zero_grad()
-        critic_loss.backward()
-        self.critic_optimizer.step()
+       
 
         # Actor loss
         policy_loss = -self.critic(states, self.actor(states)).mean()
+
+        # Update actor network
         self.actor.zero_grad()
         policy_loss.backward()
         self.actor_optimizer.step()
 
+        # Update critic network
+        self.critic.zero_grad()
+        critic_loss.backward()
+        self.critic_optimizer.step()
+
+        self.actor_soft_update()
+        self.critic_soft_update()
+        
     def actor_soft_update(self, tau: float = TAU):
         """Soft update for actor target network
 
