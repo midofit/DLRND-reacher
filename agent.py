@@ -74,7 +74,7 @@ class Agent():
         self.actor.load_state_dict(torch.load(f"{checkpoint_path}/actor.pt"))
         self.critic.load_state_dict(torch.load(f"{checkpoint_path}/critic.pt"))
 
-    def act(self, state: np.array, eps:float=0.):
+    def act(self, state: np.array):
         """Returns actions for given state as per current policy.
 
         Params
@@ -105,7 +105,7 @@ class Agent():
         next_actions = self.actor_target(next_states)
         next_Q = self.critic_target(next_states, next_actions.detach())
         Q_prime = rewards + gamma * next_Q * mask
-        critic_loss = F.mse_loss(Q_values, Q_prime)
+        critic_loss = F.mse_loss(Q_values, Q_prime.detach())
        
 
         # Actor loss
