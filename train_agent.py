@@ -5,8 +5,9 @@ from collections import namedtuple, deque
 from agent import Agent
 import matplotlib.pyplot as plt
 from environment import env
+from util import OUNoise
 
-def ddpg(env, agent, brain_name,  n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.995):
+def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=10000):
     """Deep Q-Learning.
     
     Params
@@ -19,13 +20,15 @@ def ddpg(env, agent, brain_name,  n_episodes=2000, max_t=1000, eps_start=1.0, ep
     """
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
-    eps = eps_start                    # initialize epsilon
+    noise = OUNoise(action_size)
     for i_episode in range(1, n_episodes+1):
         env_info = env.reset(train_mode=True)[brain_name] # reset the environment
         state = env_info.vector_observations[0]    
+        noise.reset()
         score = 0
-        for t in range(max_t):
-            action = agent.act(state, eps)
+        for step in range(max_t):
+            action = agent.act(state)
+            action = noise.get_action(action, step)
             env_info = env.step(action)[brain_name]        # send the action to the environment
             next_state = env_info.vector_observations[0]   # get the next state
             reward = env_info.rewards[0]                   # get the reward
@@ -37,11 +40,10 @@ def ddpg(env, agent, brain_name,  n_episodes=2000, max_t=1000, eps_start=1.0, ep
                 break 
         scores_window.append(score)       # save most recent score
         scores.append(score)              # save most recent score
-        eps = max(eps_end, eps_decay*eps) # decrease epsilon
         print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
         if i_episode % 100 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
-        if np.mean(scores_window)>=13:
+        if np.mean(scores_window)>=30:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
             agent.save_model()
             break
@@ -67,7 +69,7 @@ if __name__ == "__main__":
     state_size = len(state)
     print('States have length:', state_size)
     agent = Agent(state_size=state_size, action_size=brain.vector_action_space_size, seed=0)
-    scores = ddpg(env, agent, brain_name)
+    scores = ddpg(env, agent, brain_name, brain.vector_action_space_size)
 
     # plot the scores
     fig = plt.figure()
