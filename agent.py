@@ -39,9 +39,9 @@ class Agent():
         self.critic_target = Critic(
             state_size, action_size, seed, CRITIC_NETWORK_LINEAR_SIZES).to(device)
         self.actor_optimizer = optim.Adam(
-            self.actor.parameters(), lr=LEARNING_RATE)
+            self.actor.parameters(), lr=ACTOR_LEARNING_RATE)
         self.critic_optimizer = optim.Adam(
-            self.critic.parameters(), lr=LEARNING_RATE)
+            self.critic.parameters(), lr=CRITIC_LEARNING_RATE)
 
         # Replay memory
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
