@@ -31,13 +31,13 @@ class Agent():
 
         # Initialize actor and critic local and target networks
         self.actor = Actor(state_size, action_size, seed,
-                           ACTOR_NETWORK_LINEAR_SIZES).to(device)
+                           ACTOR_NETWORK_LINEAR_SIZES, batch_normalization=ACTOR_BATCH_NORM).to(device)
         self.actor_target = Actor(
-            state_size, action_size, seed, ACTOR_NETWORK_LINEAR_SIZES).to(device)
+            state_size, action_size, seed, ACTOR_NETWORK_LINEAR_SIZES, batch_normalization=ACTOR_BATCH_NORM).to(device)
         self.critic = Critic(state_size, action_size, seed,
-                             CRITIC_NETWORK_LINEAR_SIZES).to(device)
+                             CRITIC_NETWORK_LINEAR_SIZES, batch_normalization=CRITIC_BATCH_NORM).to(device)
         self.critic_target = Critic(
-            state_size, action_size, seed, CRITIC_NETWORK_LINEAR_SIZES).to(device)
+            state_size, action_size, seed, CRITIC_NETWORK_LINEAR_SIZES, batch_normalization=CRITIC_BATCH_NORM).to(device)
         self.actor_optimizer = optim.Adam(
             self.actor.parameters(), lr=ACTOR_LEARNING_RATE)
         self.critic_optimizer = optim.Adam(
@@ -106,7 +106,6 @@ class Agent():
         next_Q = self.critic_target(next_states, next_actions.detach())
         Q_prime = rewards + gamma * next_Q * mask
         critic_loss = F.mse_loss(Q_values, Q_prime.detach())
-       
 
         # Actor loss
         policy_loss = -self.critic(states, self.actor(states)).mean()
@@ -123,7 +122,7 @@ class Agent():
 
         self.actor_soft_update()
         self.critic_soft_update()
-        
+
     def actor_soft_update(self, tau: float = TAU):
         """Soft update for actor target network
 
