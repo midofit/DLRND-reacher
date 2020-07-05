@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class Actor(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0.32):
+    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0.32, batch_normalization=True):
         """Initialize parameters and build model.
         Params
         ======
@@ -23,7 +23,10 @@ class Actor(nn.Module):
             batch_norm = nn.BatchNorm1d(int(linear_layer_sizes[i-1]))
             linear_layer_size = linear_layer_sizes[i]
             linear_layer = nn.Linear(int(linear_layer_sizes[i-1]), int(linear_layer_size))
-            linear_layers.extend([batch_norm, linear_layer, self.relu, self.dropout])
+            if batch_normalization:
+                # Add batch normalization for each layer
+                linear_layers.append(batch_norm)
+            linear_layers.extend([linear_layer, self.relu, self.dropout])
         self.linear = nn.Sequential(*linear_layers)
         self.output = nn.Linear(int(linear_layer_sizes[-1]), action_size)
 
@@ -39,7 +42,7 @@ class Actor(nn.Module):
 class Critic(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0.32):
+    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0.32, batch_normalization=True):
         """Initialize parameters and build model.
         Params
         ======
@@ -57,7 +60,10 @@ class Critic(nn.Module):
             batch_norm = nn.BatchNorm1d(int(linear_layer_sizes[i-1]))
             linear_layer_size = linear_layer_sizes[i]
             linear_layer = nn.Linear(int(linear_layer_sizes[i-1]), int(linear_layer_size))
-            linear_layers.extend([batch_norm, linear_layer, self.relu, self.dropout])
+            if batch_normalization:
+                # Add batch normalization for each layer
+                linear_layers.append(batch_norm)
+            linear_layers.extend([linear_layer, self.relu, self.dropout])
         self.linear = nn.Sequential(*linear_layers)
         self.output = nn.Linear(int(linear_layer_sizes[-1]), action_size)
 
