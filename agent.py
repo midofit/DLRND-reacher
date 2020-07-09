@@ -9,6 +9,7 @@ import torch.optim as optim
 
 from settings import *
 from network import Actor, Critic
+from util import OUNoise
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -16,7 +17,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size: int, action_size: int, seed: int):
+    def __init__(self, state_size: int, action_size: int, seed: int, n_agent: int):
         """Initialize an Agent object.
 
         Params
@@ -27,6 +28,7 @@ class Agent():
         """
         self.state_size = state_size
         self.action_size = action_size
+        self.n_agent = n_agent
         self.seed = random.seed(seed)
 
         # Initialize actor and critic local and target networks
@@ -42,11 +44,11 @@ class Agent():
             self.actor.parameters(), lr=ACTOR_LEARNING_RATE)
         self.critic_optimizer = optim.Adam(
             self.critic.parameters(), lr=CRITIC_LEARNING_RATE)
-
         # Replay memory
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
         # Initialize time step (for updating every UPDATE_EVERY steps)
-        self.t_step = 0
+        self.t_step = [0] * n_agent
+        self.noises = [OUNoise(action_size) for i in range(self.n_agent)]
 
         # Copy parameters from local network to target network
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
@@ -54,17 +56,20 @@ class Agent():
         for target_param, param in zip(self.critic_target.parameters(), self.critic.parameters()):
             target_param.data.copy_(param.data)
 
-    def step(self, state: np.array, action, reward, next_state, done):
+    def step(self, state: np.array, action, reward, next_state, done, i_agent):
         # Save experience in replay memory
         self.memory.add(state, action, reward, next_state, done)
 
         # Learn every UPDATE_EVERY time steps.
-        self.t_step = (self.t_step + 1) % UPDATE_EVERY
-        if self.t_step == 0:
-            # If enough samples are available in memory, get random subset and learn
-            if len(self.memory) > BATCH_SIZE:
+        self.t_step[i_agent] = (self.t_step[i_agent] + 1) % UPDATE_EVERY
+        # Learn, if enough samples are available in memory every UPDATE_EVERY
+        if len(self.memory) > BATCH_SIZE and (not any(self.t_step)):
+            for _ in range(LEARN_TIMES):
                 experiences = self.memory.sample()
                 self.learn(experiences, GAMMA)
+
+    def noise_reset(self):
+        [self.noises[i_agent].reset() for i_agent in range(self.n_agent)]
 
     def save_model(self, checkpoint_path: str = "./checkpoints/"):
         torch.save(self.actor.state_dict(), f"{checkpoint_path}/actor.pt")
@@ -74,21 +79,20 @@ class Agent():
         self.actor.load_state_dict(torch.load(f"{checkpoint_path}/actor.pt"))
         self.critic.load_state_dict(torch.load(f"{checkpoint_path}/critic.pt"))
 
-    def act(self, state: np.array):
+    def act(self, state: np.array, step:int, i_agent:int):
         """Returns actions for given state as per current policy.
 
         Params
         ======
             state (array_like): current state
-            eps (float): epsilon, for epsilon-greedy action selection
         """
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         self.actor.eval()
         with torch.no_grad():
-            action_values = self.actor(state)
+            action_values = self.actor(state).tolist()
         self.actor.train()
-
-        return action_values.tolist()
+        action_values = self.noises[i_agent].get_action(action_values, step)
+        return action_values
 
     def learn(self, experiences: tuple, gamma=GAMMA):
         """Update value parameters using given batch of experience tuples.
@@ -100,12 +104,17 @@ class Agent():
         """
         states, actions, rewards, next_states, dones = experiences
         # Critic loss
-        mask = torch.tensor(1-dones)
+        mask = torch.tensor(1-dones).detach()
         Q_values = self.critic(states, actions)
         next_actions = self.actor_target(next_states)
         next_Q = self.critic_target(next_states, next_actions.detach())
         Q_prime = rewards + gamma * next_Q * mask
         critic_loss = F.mse_loss(Q_values, Q_prime.detach())
+
+        # Update critic network
+        self.critic.zero_grad()
+        critic_loss.backward()
+        self.critic_optimizer.step()
 
         # Actor loss
         policy_loss = -self.critic(states, self.actor(states)).mean()
@@ -115,10 +124,6 @@ class Agent():
         policy_loss.backward()
         self.actor_optimizer.step()
 
-        # Update critic network
-        self.critic.zero_grad()
-        critic_loss.backward()
-        self.critic_optimizer.step()
 
         self.actor_soft_update()
         self.critic_soft_update()
@@ -140,6 +145,7 @@ class Agent():
             tau (float, optional). Defaults to TAU.
         """
         for target_param, param in zip(self.critic_target.parameters(), self.critic.parameters()):
+            target_param.detach_()
             target_param.data.copy_(
                 tau * param.data + (1.0 - tau) * target_param.data)
 
