@@ -114,6 +114,8 @@ class Agent():
         # Update critic network
         self.critic.zero_grad()
         critic_loss.backward()
+        if CRITIC_GRADIENT_CLIPPING_VALUE:
+            torch.nn.utils.clip_grad_value_(self.critic.parameters(), CRITIC_GRADIENT_CLIPPING_VALUE)
         self.critic_optimizer.step()
 
         # Actor loss
@@ -122,6 +124,8 @@ class Agent():
         # Update actor network
         self.actor.zero_grad()
         policy_loss.backward()
+        if ACTOR_GRADIENT_CLIPPING_VALUE:
+            torch.nn.utils.clip_grad_value_(self.actor.parameters(), ACTOR_GRADIENT_CLIPPING_VALUE)
         self.actor_optimizer.step()
 
 
