@@ -22,6 +22,7 @@ def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=1000, n_age
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
     noise = OUNoise(action_size)
+    best_score = 0
     for i_episode in range(1, n_episodes+1):
         env_info = env.reset(train_mode=True)[
             brain_name]  # reset the environment
@@ -46,11 +47,13 @@ def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=1000, n_age
         score = np.mean(agent_scores)
         scores_window.append(score)       # save most recent score
         scores.append(score)              # save most recent score
-        print('\rEpisode {}\tAverage Score: {:.2f}'.format(
-            i_episode, np.mean(scores_window)), end="")
+        if best_score < score:
+            best_score = score
+        print('\rEpisode {}\t Episode score: {:.2f}\t Average Score: {:.2f}\t Best Score: {:.2f}'.format(
+            i_episode, score, np.mean(scores_window), best_score), end="")
         if i_episode % 100 == 0:
-            print('\rEpisode {}\tAverage Score: {:.2f}'.format(
-                i_episode, np.mean(scores_window)))
+            print('\rEpisode {}\t Current score: {:.2f}\t Average Score: {:.2f}'.format(
+                i_episode, score, np.mean(scores_window)))
         if np.mean(scores_window) >= 30:
             print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(
                 i_episode-100, np.mean(scores_window)))
