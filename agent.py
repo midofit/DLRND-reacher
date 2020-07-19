@@ -48,7 +48,7 @@ class Agent():
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = [0] * n_agent
-        self.noises = [OUNoise(action_size) for i in range(self.n_agent)]
+        self.noises = [OUNoise(action_size, seed*i) for i in range(self.n_agent)]
 
         # Copy parameters from local network to target network
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
@@ -89,9 +89,9 @@ class Agent():
         state = torch.from_numpy(state).float().unsqueeze(0).to(device)
         self.actor.eval()
         with torch.no_grad():
-            action_values = self.actor(state).tolist()
+            action_values = self.actor(state).cpu().data.numpy()
         self.actor.train()
-        action_values = self.noises[i_agent].get_action(action_values, step)
+        action_values = self.noises[i_agent].get_action(action_values, t=step)
         return action_values
 
     def learn(self, experiences: tuple, gamma=GAMMA):
@@ -112,17 +112,17 @@ class Agent():
         critic_loss = F.mse_loss(Q_values, Q_prime.detach())
 
         # Update critic network
-        self.critic.zero_grad()
+        self.critic_optimizer.zero_grad()
         critic_loss.backward()
         if CRITIC_GRADIENT_CLIPPING_VALUE:
             torch.nn.utils.clip_grad_value_(self.critic.parameters(), CRITIC_GRADIENT_CLIPPING_VALUE)
         self.critic_optimizer.step()
 
         # Actor loss
-        policy_loss = -self.critic(states, self.actor(states)).mean()
+        policy_loss =  -self.critic(states, self.actor(states)).mean()
 
         # Update actor network
-        self.actor.zero_grad()
+        self.actor_optimizer.zero_grad()
         policy_loss.backward()
         if ACTOR_GRADIENT_CLIPPING_VALUE:
             torch.nn.utils.clip_grad_value_(self.actor.parameters(), ACTOR_GRADIENT_CLIPPING_VALUE)
