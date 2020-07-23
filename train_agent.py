@@ -21,7 +21,6 @@ def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=1000, n_age
     """
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
-    noise = OUNoise(action_size)
     best_score = 0
     for i_episode in range(1, n_episodes+1):
         env_info = env.reset(train_mode=True)[
@@ -29,7 +28,6 @@ def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=1000, n_age
         states = env_info.vector_observations
         agent.noise_reset()
         agent_scores = [0]*n_agent
-        score = 0
         for step in range(max_t):
             actions = [agent.act(states[i_agent], step, i_agent)
                        for i_agent in range(n_agent)]
@@ -82,7 +80,7 @@ if __name__ == "__main__":
     state_size = len(state)
     print('States have length:', state_size)
     agent = Agent(state_size=state_size,
-                  action_size=brain.vector_action_space_size, seed=0, n_agent=20)
+                  action_size=brain.vector_action_space_size, seed=2, n_agent=20)
     scores = ddpg(env, agent, brain_name, brain.vector_action_space_size)
 
     # plot the scores
