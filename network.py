@@ -5,7 +5,7 @@ import torch.nn.functional as F
 class Actor(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0.1, batch_normalization=True):
+    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0, batch_normalization=True):
         """Initialize parameters and build model.
         Params
         ======
@@ -42,7 +42,7 @@ class Actor(nn.Module):
 class Critic(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0.1, batch_normalization=True):
+    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0, batch_normalization=True):
         """Initialize parameters and build model.
         Params
         ======
