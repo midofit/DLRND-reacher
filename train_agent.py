@@ -7,9 +7,10 @@ import matplotlib.pyplot as plt
 from environment import env
 from util import OUNoise
 
-def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=10000):
+
+def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=1000, n_agent=20):
     """Deep Q-Learning.
-    
+
     Params
     ======
         n_episodes (int): maximum number of training episodes
@@ -20,31 +21,39 @@ def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=10000):
     """
     scores = []                        # list containing scores from each episode
     scores_window = deque(maxlen=100)  # last 100 scores
-    noise = OUNoise(action_size)
+    best_score = 0
     for i_episode in range(1, n_episodes+1):
-        env_info = env.reset(train_mode=True)[brain_name] # reset the environment
-        state = env_info.vector_observations[0]    
-        noise.reset()
-        score = 0
+        env_info = env.reset(train_mode=True)[
+            brain_name]  # reset the environment
+        states = env_info.vector_observations
+        agent.noise_reset()
+        agent_scores = [0]*n_agent
         for step in range(max_t):
-            action = agent.act(state)
-            action = noise.get_action(action, step)
-            env_info = env.step(action)[brain_name]        # send the action to the environment
-            next_state = env_info.vector_observations[0]   # get the next state
-            reward = env_info.rewards[0]                   # get the reward
-            done = env_info.local_done[0]                  # see if episode has finished
-            agent.step(state, action, reward, next_state, done)
-            state = next_state
-            score += reward
-            if done:
-                break 
+            actions = agent.act(states, step)
+            env_info = env.step(actions)[brain_name]     # send the action to the environment
+            next_states = env_info.vector_observations   # get the next state
+            rewards = env_info.rewards                   # get the reward
+            dones = env_info.local_done                  # see if episode has finished
+            for i_agent in range(n_agent):
+                agent_scores[i_agent] += rewards[i_agent]
+                agent.step(states[i_agent], actions[i_agent], rewards[i_agent],
+                           next_states[i_agent], dones[i_agent], i_agent)
+            states = next_states
+            if any(dones):
+                break
+        score = np.mean(agent_scores)
         scores_window.append(score)       # save most recent score
         scores.append(score)              # save most recent score
-        print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)), end="")
+        if best_score < score:
+            best_score = score
+        print('\rEpisode {}\t Episode score: {:.2f}\t Average Score: {:.2f}\t Best Score: {:.2f}'.format(
+            i_episode, score, np.mean(scores_window), best_score), end="")
         if i_episode % 100 == 0:
-            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
-        if np.mean(scores_window)>=30:
-            print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
+            print('\rEpisode {}\t Current score: {:.2f}\t Average Score: {:.2f}'.format(
+                i_episode, score, np.mean(scores_window)))
+        if np.mean(scores_window) >= 30:
+            print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(
+                i_episode-100, np.mean(scores_window)))
             agent.save_model()
             break
     env.close()
@@ -54,6 +63,7 @@ def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=10000):
 if __name__ == "__main__":
     brain_name = env.brain_names[0]
     brain = env.brains[brain_name]
+    print("Brain name: ", brain_name)
     # reset the environment
     env_info = env.reset(train_mode=True)[brain_name]
 
@@ -62,14 +72,15 @@ if __name__ == "__main__":
 
     # number of actions
     action_size = brain.vector_action_space_size
-    print('Number of actions:', action_size)
+    print('Action size', action_size)
 
-    # examine the state space 
+    # examine the state space
     state = env_info.vector_observations[0]
     state_size = len(state)
     print('States have length:', state_size)
-    agent = Agent(state_size=state_size, action_size=brain.vector_action_space_size, seed=0)
-    scores = ddpg(env, agent, brain_name, brain.vector_action_space_size)
+    agent = Agent(state_size=state_size,
+                  action_size=action_size, seed=2, n_agent=20)
+    scores = ddpg(env, agent, brain_name, action_size)
 
     # plot the scores
     fig = plt.figure()
