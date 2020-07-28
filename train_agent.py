@@ -29,8 +29,7 @@ def ddpg(env, agent, brain_name, action_size, n_episodes=2000, max_t=1000, n_age
         agent.noise_reset()
         agent_scores = [0]*n_agent
         for step in range(max_t):
-            actions = [agent.act(states[i_agent], step, i_agent)
-                       for i_agent in range(n_agent)]
+            actions = agent.act(states, step)
             env_info = env.step(actions)[brain_name]     # send the action to the environment
             next_states = env_info.vector_observations   # get the next state
             rewards = env_info.rewards                   # get the reward
@@ -80,8 +79,8 @@ if __name__ == "__main__":
     state_size = len(state)
     print('States have length:', state_size)
     agent = Agent(state_size=state_size,
-                  action_size=brain.vector_action_space_size, seed=2, n_agent=20)
-    scores = ddpg(env, agent, brain_name, brain.vector_action_space_size)
+                  action_size=action_size, seed=2, n_agent=20)
+    scores = ddpg(env, agent, brain_name, action_size)
 
     # plot the scores
     fig = plt.figure()
