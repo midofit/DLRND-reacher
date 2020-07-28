@@ -1,77 +1,94 @@
+#!python
+"""Actor and critic neural network implementations"""
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+def _hidden_init(layer):
+    fan_in = layer.weight.data.size()[0]
+    lim = 1. / np.sqrt(fan_in)
+    return (-lim, lim)
+
+
 class Actor(nn.Module):
     """Actor (Policy) Model."""
 
-    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0, batch_normalization=True):
-        """Initialize parameters and build model.
-        Params
-        ======
-            state_size (int): Dimension of each state
-            action_size (int): Dimension of each action
-            seed (int): Random seed
+    def __init__(self, state_size, action_size, seed):
+        """Create an instance of Actor neural network, which takes state
+        vector as the input and returns action vector as the output
+        :param state_size: dimensionality of the state vector
+        :param action_size: dimensionality of the action vector
+        :param seed: random seen to reproduce results
         """
         super(Actor, self).__init__()
+
+        fc_units = 256
+
         self.seed = torch.manual_seed(seed)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(p=dropout)
-        linear_layer_sizes = linear_sizes.split(",")
-        linear_layers = [nn.BatchNorm1d(state_size), nn.Linear(state_size, int(linear_layer_sizes[0])), self.relu, self.dropout]
-        for i in range(1, len(linear_layer_sizes)):
-            batch_norm = nn.BatchNorm1d(int(linear_layer_sizes[i-1]))
-            linear_layer_size = linear_layer_sizes[i]
-            linear_layer = nn.Linear(int(linear_layer_sizes[i-1]), int(linear_layer_size))
-            if batch_normalization:
-                # Add batch normalization for each layer
-                linear_layers.append(batch_norm)
-            linear_layers.extend([linear_layer, self.relu, self.dropout])
-        self.linear = nn.Sequential(*linear_layers)
-        self.output = nn.Linear(int(linear_layer_sizes[-1]), action_size)
+        self.fc1 = nn.Linear(state_size, fc_units)
+        self.batch_norm1 = nn.BatchNorm1d(fc_units)
+        self.fc2 = nn.Linear(fc_units, action_size)
+        self.__reset_parameters()
+
 
     def forward(self, state):
-        """Build a network that maps state -> action values."""
-        output = self.linear(state)
-        output = self.output(output)
-        output = torch.tanh(output)
-        return output
+        """Build an actor (policy) network that maps states -> actions."""
 
+        # pylint: disable=arguments-differ
+
+        state = F.relu(self.batch_norm1(self.fc1(state)))
+        return F.tanh(self.fc2(state))
+
+
+    def __reset_parameters(self):
+        self.fc1.weight.data.uniform_(*_hidden_init(self.fc1))
+        self.fc2.weight.data.uniform_(-3e-3, 3e-3)
 
 
 class Critic(nn.Module):
-    """Actor (Policy) Model."""
+    """Critic (Value) Model."""
 
-    def __init__(self, state_size: int, action_size:int, seed:float, linear_sizes:str, dropout:float=0, batch_normalization=True):
-        """Initialize parameters and build model.
-        Params
-        ======
-            state_size (int): Dimension of each state
-            action_size (int): Dimension of each action
-            seed (int): Random seed
+    def __init__(self, state_size, action_size, seed):
+        """Create an instance of Cricit neural network, which takes state
+        vector and action vector as the input and returns the value of the
+        (state, action pair)
+        :param state_size: dimensionality of the state vector
+        :param action_size: dimensionality of the action vector
+        :param seed: random seen to reproduce results
         """
         super(Critic, self).__init__()
+
+        fcs1_units = 256
+        fc2_units = 256
+        fc3_units = 128
+
         self.seed = torch.manual_seed(seed)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(p=dropout)
-        linear_layer_sizes = linear_sizes.split(",")
-        self.fc1 = nn.Linear(state_size, int(linear_layer_sizes[0]))
-        linear_layers = [nn.BatchNorm1d(int(linear_layer_sizes[0]) + action_size), nn.Linear(int(linear_layer_sizes[0]) + action_size, int(linear_layer_sizes[1])), self.relu, self.dropout]
-        for i in range(2, len(linear_layer_sizes)):
-            batch_norm = nn.BatchNorm1d(int(linear_layer_sizes[i-1]))
-            linear_layer_size = linear_layer_sizes[i]
-            linear_layer = nn.Linear(int(linear_layer_sizes[i-1]), int(linear_layer_size))
-            if batch_normalization:
-                # Add batch normalization for each layer
-                linear_layers.append(batch_norm)
-            linear_layers.extend([linear_layer, self.relu, self.dropout])
-        self.linear = nn.Sequential(*linear_layers)
-        self.output = nn.Linear(int(linear_layer_sizes[-1]), action_size)
+        self.fcs1 = nn.Linear(state_size, fcs1_units)
+        self.fc2 = nn.Linear(fcs1_units + action_size, fc2_units)
+        self.batch_norm2 = nn.BatchNorm1d(fc2_units)
+        self.fc3 = nn.Linear(fc2_units, fc3_units)
+        self.fc4 = nn.Linear(fc3_units, 1)
+        self.__reset_parameters()
+
 
     def forward(self, state, action):
-        """Build a network that maps state -> action values."""
-        output = self.fc1(state)
-        output = torch.cat([output, action], dim=1)
-        output = self.linear(output)
-        output = self.output(output)
-        return output
+        """Build a critic (value) network that maps (state, action) pairs ->
+        Q-values."""
+
+        # pylint: disable=no-member, arguments-differ
+
+        state = F.leaky_relu(self.fcs1(state))
+        data = torch.cat((state, action), dim=1)
+        data = F.leaky_relu(self.batch_norm2(self.fc2(data)))
+        data = F.leaky_relu(self.fc3(data))
+        return self.fc4(data)
+
+
+    def __reset_parameters(self):
+        self.fcs1.weight.data.uniform_(*_hidden_init(self.fcs1))
+        self.fc2.weight.data.uniform_(*_hidden_init(self.fc2))
+        self.fc3.weight.data.uniform_(*_hidden_init(self.fc3))
+        self.fc4.weight.data.uniform_(-3e-3, 3e-3)

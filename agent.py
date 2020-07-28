@@ -12,6 +12,7 @@ from network import Actor, Critic
 from util import OUNoise
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print('Using device:', device)
 
 
 class Agent():
@@ -32,14 +33,12 @@ class Agent():
         self.seed = random.seed(seed)
 
         # Initialize actor and critic local and target networks
-        self.actor = Actor(state_size, action_size, seed,
-                           ACTOR_NETWORK_LINEAR_SIZES, batch_normalization=ACTOR_BATCH_NORM).to(device)
+        self.actor = Actor(state_size, action_size, seed).to(device)
         self.actor_target = Actor(
-            state_size, action_size, seed, ACTOR_NETWORK_LINEAR_SIZES, batch_normalization=ACTOR_BATCH_NORM).to(device)
-        self.critic = Critic(state_size, action_size, seed,
-                             CRITIC_NETWORK_LINEAR_SIZES, batch_normalization=CRITIC_BATCH_NORM).to(device)
+            state_size, action_size, seed).to(device)
+        self.critic = Critic(state_size, action_size, seed).to(device)
         self.critic_target = Critic(
-            state_size, action_size, seed, CRITIC_NETWORK_LINEAR_SIZES, batch_normalization=CRITIC_BATCH_NORM).to(device)
+            state_size, action_size, seed).to(device)
         self.actor_optimizer = optim.Adam(
             self.actor.parameters(), lr=ACTOR_LEARNING_RATE)
         self.critic_optimizer = optim.Adam(
@@ -49,6 +48,7 @@ class Agent():
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = [0] * n_agent
         self.noises = [OUNoise(action_size, seed*i) for i in range(self.n_agent)]
+        self.epsilon = EPS_START
 
         # Copy parameters from local network to target network
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
@@ -79,20 +79,22 @@ class Agent():
         self.actor.load_state_dict(torch.load(f"{checkpoint_path}/actor.pt"))
         self.critic.load_state_dict(torch.load(f"{checkpoint_path}/critic.pt"))
 
-    def act(self, state: np.array, step:int, i_agent:int):
+    def act(self, states: np.array, step:int):
         """Returns actions for given state as per current policy.
 
         Params
         ======
             state (array_like): current state
         """
-        state = torch.from_numpy(state).float().unsqueeze(0).to(device)
+        states = torch.from_numpy(states).float().to(device)
         self.actor.eval()
         with torch.no_grad():
-            action_values = self.actor(state).cpu().data.numpy()
+            action_values = self.actor(states).cpu().data.numpy()
         self.actor.train()
-        action_values = self.noises[i_agent].get_action(action_values, t=step)
-        return action_values
+        self.epsilon = max(EPS_END, EPS_DECAY * self.epsilon)
+        for action, noise in zip(action_values, self.noises):
+            action = noise.get_action(action,t=step)
+        return np.clip(action_values, -1, 1)
 
     def learn(self, experiences: tuple, gamma=GAMMA):
         """Update value parameters using given batch of experience tuples.
@@ -104,7 +106,7 @@ class Agent():
         """
         states, actions, rewards, next_states, dones = experiences
         # Critic loss
-        mask = torch.tensor(1-dones).detach()
+        mask = torch.tensor(1-dones).detach().to(device)
         Q_values = self.critic(states, actions)
         next_actions = self.actor_target(next_states)
         next_Q = self.critic_target(next_states, next_actions.detach())
@@ -115,7 +117,7 @@ class Agent():
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         if CRITIC_GRADIENT_CLIPPING_VALUE:
-            torch.nn.utils.clip_grad_value_(self.critic.parameters(), CRITIC_GRADIENT_CLIPPING_VALUE)
+            torch.nn.utils.clip_grad_norm_(self.critic.parameters(), CRITIC_GRADIENT_CLIPPING_VALUE)
         self.critic_optimizer.step()
 
         # Actor loss
@@ -125,7 +127,7 @@ class Agent():
         self.actor_optimizer.zero_grad()
         policy_loss.backward()
         if ACTOR_GRADIENT_CLIPPING_VALUE:
-            torch.nn.utils.clip_grad_value_(self.actor.parameters(), ACTOR_GRADIENT_CLIPPING_VALUE)
+            torch.nn.utils.clip_grad_norm_(self.actor.parameters(), ACTOR_GRADIENT_CLIPPING_VALUE)
         self.actor_optimizer.step()
 
 
