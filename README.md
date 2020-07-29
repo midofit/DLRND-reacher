@@ -1,5 +1,5 @@
-# DRLND-reacher
-Reacher project for Udacity's Deep Reinforcement Learning Nanodegree
+# DLRND-navigation
+Navigation project for Udacity's Deep Reinforcement Learning Nanodegree
 
 ## Getting Started
 
@@ -29,18 +29,18 @@ A step by step series of examples that tell you how to get a development env run
 Clone the project repository
 
 ```
-$ git clone https://github.com/midofit/DRLND-reacher.git
+$ git clone git@github.com:midofit/DLRND-navigation.git
 ```
 
 Navigate to the project root. If you have installed `virtualenv` from the previous step, create a new python virtual environment for this project:  
 
 ```
-$ virtualenv reacher -p python3
+$ virtualenv navigation -p python3
 ```
 and activate the virtual environment. Skip this step if you choose to install the python packages globally
 
 ```
-$ source reacher/bin/activate
+$ source navigation/bin/activate
 ```
 #### 2. Install dependencies  
 
@@ -53,18 +53,18 @@ To install the dependencies without the virtual environment, use `pip3`:
 $ pip3 install -r requirements.txt
 ```
 
-#### 3. Download Unity's Reacher environment
+#### 3. Download Unity's Banana environment
 Create `data` folder in the project root
 ```
 $ mkdir data
 ```
 You need only select the environment that matches your operating system:  
-* Linux: [Click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P2/Reacher/Reacher_Linux.zip)
-* Mac OSX: [Click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P2/Reacher/Reacher.app.zip)
-* Windows (32-bit): [Click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P2/Reacher/Reacher_Windows_x86.zip):
-* Windows (64-bit): [Click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P2/Reacher/Reacher_Windows_x86_64.zip)       
+* Linux: [Click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/Banana_Linux.zip)
+* Mac OSX: [Click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/Banana.app.zip)
+* Windows (32-bit): [Click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/Banana_Windows_x86.zip):
+* Windows (64-bit): [Click here](https://s3-us-west-1.amazonaws.com/udacity-drlnd/P1/Banana/Banana_Windows_x86_64.zip)       
   
-Download and extract the environment file, then place the file into `data` folder. Remember to update the `ENV_PATH` variable in `settings.py` to match the file name
+Download and extract the environment file, then place the file into `data` folder. Remember to update the `BANANA_FILE_PATH` variable in `settings.py` to match the file name
 
 ### Train the agent
 
