@@ -48,7 +48,6 @@ class Agent():
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = [0] * n_agent
         self.noises = [OUNoise(action_size, seed*i) for i in range(self.n_agent)]
-        self.epsilon = EPS_START
 
         # Copy parameters from local network to target network
         for target_param, param in zip(self.actor_target.parameters(), self.actor.parameters()):
@@ -91,7 +90,6 @@ class Agent():
         with torch.no_grad():
             action_values = self.actor(states).cpu().data.numpy()
         self.actor.train()
-        self.epsilon = max(EPS_END, EPS_DECAY * self.epsilon)
         for action, noise in zip(action_values, self.noises):
             action = noise.get_action(action,t=step)
         return np.clip(action_values, -1, 1)
